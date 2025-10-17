@@ -7,16 +7,20 @@ public class SnakeMove : MonoBehaviour
 {
 
 
-    [SerializeField]Transform[] possibleTargets;
+    [SerializeField]public Transform[] possibleTargets;
 
     [SerializeField] float lerpTimeMax;
+
+    [SerializeField] GameObject Snake;
 
     [SerializeField]
     AnimationCurve idleWalkCurve;
     [SerializeField]float hungerStep;
     Transform target = null;
-    Vector3 startPos = Vector3.zero; 
+    Vector3 startPos = Vector3.zero;
     float lerpTime;
+    [SerializeField]
+    float deathTimer = 1;
 
     [SerializeField]float life = 20f;
     enum SnakeStates
@@ -35,6 +39,7 @@ public class SnakeMove : MonoBehaviour
     List<GameObject> allFood = new List<GameObject>();
     GameObject touchingObj;
     List<GameObject> snakeTag = new List<GameObject>();
+    float mateTimer = 10;
 
     void Start()
     {
@@ -44,6 +49,8 @@ public class SnakeMove : MonoBehaviour
 
     void Update()
     {
+        StepNeeds();
+        
         switch (state)
         {
             case SnakeStates.idling:
@@ -86,8 +93,6 @@ public class SnakeMove : MonoBehaviour
             lerpTime = 0;
         }
 
-        StepNeeds();
-
         if (hungerVal <= 0)
         {
             target = null;
@@ -98,8 +103,9 @@ public class SnakeMove : MonoBehaviour
             target = null;
             state = SnakeStates.dying;
         }
-        if (snakeTag.Count >= 2 && hungerVal > 2 )
+        if (snakeTag.Count >= 2 && hungerVal > 2 && mateTimer <= 0)
         {
+            target = null;
             state = SnakeStates.mating;
         }
     }
@@ -132,8 +138,12 @@ public class SnakeMove : MonoBehaviour
 
     void RunDeath()
     {
+        deathTimer -= Time.deltaTime;
         this.gameObject.GetComponent<SpriteRenderer>().sprite = deadSnake;
-        Destroy(gameObject);
+        if (deathTimer <= 0)
+        {
+            Destroy(gameObject);
+        }
     }
 
     void RunMate()
@@ -150,10 +160,13 @@ public class SnakeMove : MonoBehaviour
             if (touchingObj != null)
             { 
                 if (touchingObj.tag == "snake")
-                { 
-                    //GameObject newEgg = Instantiate(egg, transform.position, Quaternion.identity);
+                {
+                    GameObject newSnake = Instantiate(Snake, transform.position, Quaternion.identity);
+                    SnakeMove snakeScript = newSnake.GetComponent<SnakeMove>();
+                    snakeScript.possibleTargets = this.possibleTargets;
                     touchingObj = null;
                     target = null;
+                    mateTimer = 10;
                     state = SnakeStates.idling;
                 }
             }
@@ -163,6 +176,7 @@ public class SnakeMove : MonoBehaviour
     void StepNeeds(){
         hungerTime -= Time.deltaTime;
         life -= Time.deltaTime;
+        mateTimer -= Time.deltaTime;
         if (hungerTime <= 0)
         {
             hungerVal--;
@@ -184,10 +198,12 @@ public class SnakeMove : MonoBehaviour
         float minDist = Mathf.Infinity; 
         Transform nearest = null; 
         for(int i = 0; i < objsToFind.Count; i++){
+            if (objsToFind[i] != null){
             float dist = Vector3.Distance(transform.position, objsToFind[i].transform.position);
             if(dist < minDist){ 
                 minDist = dist;
                 nearest = objsToFind[i].transform;
+            }
             }
         }
         return nearest;

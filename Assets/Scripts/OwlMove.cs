@@ -7,7 +7,9 @@ public class OwlMove : MonoBehaviour
 
 
     [SerializeField]
-    Transform[] possibleTargets;
+    public Transform[] possibleTargets;
+    [SerializeField] Sprite deadOwl;
+    [SerializeField] GameObject Owl;
 
     [SerializeField]
     float lerpTimeMax;
@@ -17,6 +19,8 @@ public class OwlMove : MonoBehaviour
 
     [SerializeField]
     float hungerStep;
+    [SerializeField]
+    float deathTimer = 1;
 
     [SerializeField]
     float life = 50f;
@@ -24,6 +28,7 @@ public class OwlMove : MonoBehaviour
     Vector3 startPos = Vector3.zero;
     float lerpTime;
     List<GameObject> owlCount = new List<GameObject>();
+    float mateTimer = 25;
 
     enum OwlStates
     {
@@ -32,11 +37,13 @@ public class OwlMove : MonoBehaviour
         dying,
         flying
     }
+
+    [SerializeField]
     OwlStates state = OwlStates.flying;
 
     float hungerTime;
     //hunger stat
-    float hungerVal = 3;
+    float hungerVal = 8;
 
     List<GameObject> allFood = new List<GameObject>();
     GameObject touchingObj;
@@ -49,6 +56,7 @@ public class OwlMove : MonoBehaviour
 
     void Update()
     {
+        StepNeeds();
         switch (state)
         {
             case OwlStates.flying: 
@@ -91,8 +99,6 @@ public class OwlMove : MonoBehaviour
             lerpTime = 0;
         }
 
-        StepNeeds();
-
         if (hungerVal <= 0)
         {
             target = null;
@@ -103,8 +109,9 @@ public class OwlMove : MonoBehaviour
             target = null;
             state = OwlStates.dying;
         }
-        if (owlCount.Count >= 2 && hungerVal > 2 )
+        if (mateTimer <= 0)
         {
+            target = null;
             state = OwlStates.nesting;
         }
     }
@@ -121,16 +128,7 @@ public class OwlMove : MonoBehaviour
                 if (touchingObj.tag == "snake")
                 {
                     allFood.Remove(touchingObj);
-                    hungerVal = 3;
-                    Destroy(touchingObj);
-                    touchingObj = null;
-                    target = null;
-                    state = OwlStates.flying;
-                }
-                else if (touchingObj.tag == "mice")
-                {
-                    allFood.Remove(touchingObj);
-                    hungerVal = 3;
+                    hungerVal = 8;
                     Destroy(touchingObj);
                     touchingObj = null;
                     target = null;
@@ -142,7 +140,13 @@ public class OwlMove : MonoBehaviour
 
     void RunDeath()
     {
-        Destroy(gameObject);
+        deathTimer -= Time.deltaTime;
+        this.gameObject.GetComponent<SpriteRenderer>().sprite = deadOwl;
+        transform.position -= Vector3.down * 2 * Time.deltaTime;
+        if (deathTimer <= 0)
+        {
+            Destroy(gameObject);
+        }
     }
 
     void RunNest()
@@ -158,10 +162,12 @@ public class OwlMove : MonoBehaviour
             transform.position = Move();
             if (touchingObj != null)
             { 
-                if (touchingObj.tag == "nest")
-                { 
+                if (touchingObj.tag == "owl")
+                {
+                    GameObject newOwlEgg = Instantiate(Owl, transform.position, Quaternion.identity); 
                     touchingObj = null;
                     target = null;
+                    mateTimer = 25;
                     state = OwlStates.flying;
                 }
             }
@@ -171,6 +177,7 @@ public class OwlMove : MonoBehaviour
     void StepNeeds(){
         hungerTime -= Time.deltaTime;
         life -= Time.deltaTime;
+        mateTimer -= Time.deltaTime;
         if (hungerTime <= 0)
         {
             hungerVal--;
@@ -181,17 +188,18 @@ public class OwlMove : MonoBehaviour
     void FindAllFood()
     {
         allFood.AddRange(GameObject.FindGameObjectsWithTag("snake"));
-        allFood.AddRange(GameObject.FindGameObjectsWithTag("mice"));
     }
 
     Transform FindNearest(List<GameObject> objsToFind){
         float minDist = Mathf.Infinity; //setting the min dist to a big number
         Transform nearest = null; //tracks the obj closest to us
-        for(int i = 0; i < objsToFind.Count; i++){ //loop through the objects we're checking
+        for(int i = 0; i < objsToFind.Count; i++){
+            if (objsToFind[i] != null){ //loop through the objects we're checking
             float dist = Vector3.Distance(transform.position, objsToFind[i].transform.position); //check the dist b/t the spider and the current obj
             if(dist < minDist){ //if the dist is less than our currently tracked min dist
                 minDist = dist; //set the min dist to the new dist
                 nearest = objsToFind[i].transform; //set the nearest obj var to this obj
+            }
             }
         }
         return nearest; //return the closest obj
